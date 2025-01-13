@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   content: string;
@@ -80,6 +80,8 @@ const Index = () => {
         title: "Error",
         description: error.message || "Failed to get a valid response from the server.",
       });
+      // Remove the loading message if there was an error
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
