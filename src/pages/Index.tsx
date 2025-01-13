@@ -19,16 +19,18 @@ const Index = () => {
       setIsLoading(true);
       setMessages((prev) => [...prev, { content, isAi: false }]);
 
+      console.log("Sending request to Ollama...");
       const response = await fetch("http://localhost:11434/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "phi",
+          model: "phi4",
           prompt: content,
         }),
       });
 
       console.log("Response status:", response.status);
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -54,6 +56,7 @@ const Index = () => {
         for (const line of lines) {
           try {
             const data = JSON.parse(line);
+            console.log("Parsed JSON data:", data);
             if (data.response) {
               fullResponse += data.response;
               // Update the message in real-time as we receive chunks
@@ -73,7 +76,7 @@ const Index = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to get response from Ollama. Make sure the service is running and the phi model is installed.",
+        description: "Failed to get response from Ollama. Make sure the service is running and the phi4 model is installed.",
       });
       // Remove the loading message if there was an error
       setMessages((prev) => prev.slice(0, -1));
