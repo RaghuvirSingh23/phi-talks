@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   content: string;
@@ -17,36 +17,66 @@ const Index = () => {
   const sendMessage = async (content: string) => {
     try {
       setIsLoading(true);
-      // Add user message
       setMessages((prev) => [...prev, { content, isAi: false }]);
 
-      // Call Ollama API
       const response = await fetch("http://localhost:11434/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "phi",
           prompt: content,
         }),
       });
 
+      console.log("Response status:", response.status);
+
       if (!response.ok) {
-        throw new Error("Failed to get response from Ollama");
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
-      
-      // Add AI response
-      setMessages((prev) => [...prev, { content: data.response, isAi: true }]);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Failed to read response body");
+
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          console.log("Stream completed");
+          break;
+        }
+
+        const chunk = decoder.decode(value);
+        console.log("Received chunk:", chunk);
+
+        const lines = chunk.split("\n").filter(Boolean);
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.response) {
+              fullResponse += data.response;
+              // Update the message in real-time as we receive chunks
+              setMessages((prev) => [
+                ...prev.slice(0, -1),
+                { content: fullResponse, isAi: true },
+              ]);
+            }
+          } catch (err) {
+            console.warn("Failed to parse JSON:", err);
+          }
+        }
+      }
+
     } catch (error) {
       console.error("Error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to get response from Ollama. Make sure the service is running.",
+        description: "Failed to get response from Ollama. Make sure the service is running and the phi model is installed.",
       });
+      // Remove the loading message if there was an error
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
